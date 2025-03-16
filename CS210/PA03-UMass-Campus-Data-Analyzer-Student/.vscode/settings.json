@@ -1,0 +1,7 @@
+{
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "java.project.sourcePaths": ["support", "src", "test"],
+  "todo-tree.tree.showBadges": true,
+  "todo-tree.tree.showCountsInTree": true
+}
