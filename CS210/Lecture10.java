@@ -10,6 +10,7 @@
 
 import java.util.Map;
 import java.util.Set;
+import java.util.ArrayList;
 
 public static Map<Location, Integer> locationCount(String directions) {
     Map<Location, Integer> locationCount = new Map<>();
@@ -90,4 +91,43 @@ class WraparoundCollisionlessIntegerSet {
 
 
 // In reality, insteaed of a linked list, they use something called a red-black tree
-//      Basically 
+// We therefore create an array of type ArrayList<E> in our HashTable class. 
+
+class SimpleHashTable<E> {
+    ArrayList<E>[] array; // or LinkedList
+    final int n = 1023; // size
+
+    public SimpleHashTable() {
+        array = (ArrayList<E>[]) new ArrayList[n];
+    }
+
+    void add(E e) { // If
+        int i = Math.abs(e.hashCode());
+        if (array[i % n] == null) { // if i%n is negative it throws an exception, cant access negative index
+            array[i % n] = new ArrayList<>(); 
+        }
+        if (!array[i % n].contains(e)) {
+            array[i % n].add(e);
+        }
+    }
+
+
+    void remove(E e) {
+        int i = Math.abs(e.hashCode());
+        if (array[i % n] == null) {
+            return;
+        }
+        array[i % n].remove(e);
+    }
+    
+    boolean contains(E e) {
+        int i = Math.abs(e.hashCode());
+        if (array[i % n] == null) {
+            return false;
+        }
+        return array[i % n].contains(e);
+    }
+}
+
+
+

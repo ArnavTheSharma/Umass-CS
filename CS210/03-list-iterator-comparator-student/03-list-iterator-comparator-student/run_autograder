@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+
+# Copyright (c) 2016--2019, Marc Liberatore <liberato@cs.umass.edu>
+# All rights reserved.
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# The views and conclusions contained in the software and documentation are those
+# of the authors and should not be interpreted as representing official policies,
+# either expressed or implied, of the University of Massachusetts.
+
+import glob
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+os.environ['LC_ALL'] = 'en_US.UTF-8'
+os.putenv('LC_ALL', 'en_US.UTF-8')
+
+MANIFEST_PATH = 'manifest.json'
+SUBMISSION_PATH = '/autograder/submission'
+SOURCE_PATH = '/autograder/source'
+RESULTS_JSON_PATH = '/autograder/results/results.json'
+
+"""
+Gradescope example results.json file:
+
+{ "score": 44.0, // optional, but required if not on each test case below
+  "execution_time": 136, // optional, seconds
+  "output": "Text relevant to the entire submission", // optional
+  "tests": // Optional, but required if no top-level score
+    [
+        {
+            "score": 2.0, // optional, but required if not on top level submission
+            "max_score": 2.0, // optional
+            "name": "Your name here", // optional
+            "number": "1.1", // optional (will just be numbered in order of array if no number given)
+            "output": "Giant multi-line string that will be placed in a <pre> tag and collapsed by default", // optional
+            "tags": ["tag1", "tag2", "tag3"] // optional
+        },
+        // and more test cases...
+    ]
+}
+"""
+
+"""
+example manifest.json for an ant-built `src` dir with JUnit tests:
+
+{ "type": "ant_src",
+  "files": ["src/hamspam/HamSpam.java"],
+  "tests": ["junit_tests"]
+}
+"""
+
+
+def write_results(results):
+    with open(RESULTS_JSON_PATH, 'w') as f:
+        json.dump(results, f, indent=2)
+
+
+def fail_with_missing_file(filename):
+    results = {'score': 0.0,
+               'output': 'Missing an expected file: "{}"; please check the submission instructions.'.format(filename)}
+    write_results(results)
+    sys.exit()
+
+
+def fail_with_missing_srcdir():
+    results = {'score': 0.0,
+               'output': 'Upload requires a "src" directory; please check the submission instructions.'}
+    write_results(results)
+    sys.exit()
+
+
+def fail_with_multiple_srcdir():
+    results = {'score': 0.0,
+               'output': 'Upload requires at most one "src" directory, but multiple were detected; '
+               'please check the submission instructions.'}
+    write_results(results)
+    sys.exit()
+
+
+def fail_with_compile_error(error):
+    results = {'score': 0.0,
+               'output': 'Unable to compile.',
+               'tests': [{'name': '`javac` output',
+                          'output': error}]}
+    write_results(results)
+    sys.exit()
+
+
+def sanitize_scores(scores):
+    # sanitize the results so the students don't see the name or output, just the score
+
+    sanitized_scores= []
+    test_number = 0
+
+    for original_result in scores:
+        sanitized_result = dict(original_result)
+        if 'output' in sanitized_result: del sanitized_result['output']
+        # if 'number' in sanitized_result: del sanitized_result['number']
+        test_number += 1
+        sanitized_scores.append(sanitized_result)
+
+    return sanitized_scores
+
+
+def main():
+    global SUBMISSION_PATH
+
+    os.chdir(SOURCE_PATH)
+
+    with open(MANIFEST_PATH) as f:
+        manifest = json.load(f)
+
+    if 'virtual_fb' in manifest:
+        # https://github.com/processing/processing/wiki/Running-without-a-Display
+        pid = subprocess.Popen('Xvfb :1 -screen 0 1280x800x24'.split()).pid
+        os.environ['DISPLAY'] = ':1'
+
+    if manifest['type'] == 'single':
+        # check that student uploaded the required file
+        f = manifest["file"]
+        if not os.access(os.path.join(SUBMISSION_PATH, f), os.R_OK):
+            fail_with_missing_file(f)
+
+        # copy the student file into the grading location
+        shutil.copy2(os.path.join(SUBMISSION_PATH, f), SOURCE_PATH)
+
+        # compile file
+        compile_result = subprocess.run(['javac', f], stderr=subprocess.PIPE, universal_newlines=True)
+        print(compile_result.stderr)
+        if compile_result.returncode != 0:
+            fail_with_compile_error(compile_result.stderr)
+
+    elif manifest['type'] == 'ant_src':
+        # remove known problematic duplicate directories
+        shutil.rmtree(os.path.join(SUBMISSION_PATH, '__MACOSX'), ignore_errors=True)
+
+        # check that student uploaded something containing exactly one `src/` directory
+        srcdirs = glob.glob(os.path.join(SUBMISSION_PATH, '**/src/'), recursive=True)
+        if len(srcdirs) == 0:
+            fail_with_missing_srcdir()
+        elif len(srcdirs) > 1:
+            fail_with_multiple_srcdir()
+        else:
+            # set SUBMISSION_PATH to the directory above `src`
+            SUBMISSION_PATH = os.path.dirname(os.path.dirname(srcdirs[0]))
+
+        # check that student uploaded required files
+        for f in manifest['files']:
+            if not os.access(os.path.join(SUBMISSION_PATH, f), os.R_OK):
+                fail_with_missing_file(f)
+
+        # remove src/ in existing grading location, and
+        # copy all files from submisssion's src/ into the grading location
+        shutil.rmtree(os.path.join(SOURCE_PATH, 'src'), ignore_errors=True)
+        shutil.copytree(os.path.join(SUBMISSION_PATH, 'src'),
+                        os.path.join(SOURCE_PATH, 'src'))
+
+        # compile the files
+        compile_result = subprocess.run(['ant', 'build'], stdout=subprocess.PIPE,
+                                        universal_newlines=True)
+        print(compile_result.stdout)
+        if compile_result.returncode != 0:
+            fail_with_compile_error(compile_result.stdout)
+
+    else:
+        sys.exit('Error in `manifest.json` (unknown submission type)! Contact instructor immediately.')
+
+    results = {'tests': []}
+    # whole-program output tests
+    if 'whole_program_output' in manifest['tests']:
+        for wpo_test in manifest['tests']['whole_program_output']:
+            run_result = subprocess.run(wpo_test['command'].split(),
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        universal_newlines=True)
+            if run_result.returncode != 0:
+                results['tests'].append({'name': wpo_test['name'],
+                                         'score': 0.0,
+                                         'max_score': wpo_test['score'],
+                                         'output': 'Error when running "{}":\n{}'.format(wpo_test['command'],
+                                                                                         run_result.stderr)})
+            elif run_result.stdout != wpo_test['output']:
+                results['tests'].append({'name': wpo_test['name'],
+                                         'score': 0.0,
+                                         'max_score': wpo_test['score'],
+                                         'output': 'Command:\n{}\n\nExpected output:\n{}\nActual output:\n{}\n'
+                                                   'Check the expected against the actual carefully\n'
+                                                   '(including things like spaces and newlines).'
+                                        .format(wpo_test['command'],
+                                                wpo_test['output'],
+                                                run_result.stdout)})
+            else:
+                results['tests'].append({'name': wpo_test['name'],
+                                         'score': wpo_test['score'],
+                                         'max_score': wpo_test['score'],
+                                         'output': 'Command:\n{}\n\nOutput:\n{}\n'
+                                        .format(wpo_test['command'],
+                                                run_result.stdout)})
+    elif 'junit_tests' in manifest['tests']:
+        libs = glob.glob('lib/*.jar')
+        command = 'java -cp bin/:classes/:{} com.gradescope.RunTests'.format(':'.join(libs))
+        print(command)
+        test_result = subprocess.run(command.split(),
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                      universal_newlines=True)
+        if test_result.returncode == -9:
+            results['tests'].append({'name': 'Unit Test Failure',
+                                     'score': 0.0,
+                                     'max_score': 0.0,
+                                     'output': 'Error running unit tests: JVM exited unexpectedly. Check in Eclipse ' +
+                                               'for an infinite loop, out-of-memory exception, or other problem.)\n'})
+        elif test_result.returncode != 0:
+            results['tests'].append({'name': 'Unit Test Failure',
+                                     'score': 0.0,
+                                     'max_score': 0.0,
+                                     'output': 'Error running units tests ({}): \n{}\n'.format(test_result.returncode, test_result.stdout + test_result.stderr)})
+        else:
+            test_scores = json.loads(test_result.stdout)['tests']
+
+            # output for instructor
+            print(json.dumps(test_scores, indent=2))
+
+            # results['tests'].extend(test_scores)
+
+            sanitized_scores = sanitize_scores(test_scores)
+            results['tests'].extend(sanitized_scores)
+    elif not manifest['tests']:
+        results = {'score': 1.0,
+                   'output': 'Submission successful; actual grades will be posted later.',
+                   }
+    else:
+        assert False
+
+    write_results(results)
+
+if __name__ == '__main__':
+    main()
