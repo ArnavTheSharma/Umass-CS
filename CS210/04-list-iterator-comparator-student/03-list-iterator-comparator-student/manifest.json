@@ -1,0 +1,15 @@
+{
+  "type": "ant_src",
+  "files": [
+    "src/lists/Node.java",
+    "src/lists/LinkedList.java",
+    "src/lists/ArrayList.java",
+    "src/lists/ArrayListIterator.java",
+    "src/lists/LinkedListIterator.java",
+    "src/lists/Node.java",
+    "src/comparators/WebPageRecord.java",
+    "src/comparators/LargestPageComparator.java",
+    "src/comparators/CasedURLComparator.java"
+  ],
+  "tests": ["junit_tests"]
+}
