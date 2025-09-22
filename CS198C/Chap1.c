@@ -1,15 +1,20 @@
-// C is a “higher-level language,” yet it provides capabilities that enable the user to “get in close” with the hardware and deal with the computer on a much lower level. This is because, although C is a general-purpose structured programming language, it was originally designed with systems programming applications in mind and, as such, provides the user with an enormous amount of power and flexibility.
-// assembly languages, which enabled the programmer to work with the machine on a slightly higher level. Instead of having to specify sequences of binary numbers to carry out particular tasks, the assembly language permits the programmer to use symbolic names to perform various operations and to refer to specific memory locations. A special program, known as an assembler, translates the assembly language program from its symbolic format into the specific machine instructions of the computer system
+// assembly language: enabled the programmer to work with the machine on a slightly higher level than 1's and 0's. Instead of having to specify sequences of binary numbers to carry out particular tasks, the assembly language lets us use symbolic names/english commands to do the same operations and refer to specific memory locations. 
+// A special program, known as an assembler, translates the assembly language program from its symbolic english format into the specific machine instructions of the computer system
 //      one-to-one correspondence between a statement and machine instruction = low-level language
-// portable is if a program can still run on different processor types and OS'
+
+// portable is if a program can still run on different processor types and OS
+//      
 //      processor architecture (like x86, ARM, or MIPS) - 
-// FORTRAN one of the first high-level languages that translate the same code into diff mschinr instructions based on the compiler, 
+// FORTAN is the next one and it was slightly higher level, as 1 command could now execute multiple machine instructions versus just a 1 to 1
+
 // OS handles the input and output operations, and manages computer systems resources and execution of programs
+
 // Unix OS in different flavors: Mac OS X, Linux, 
 //      Written primarily in C, so we don't needa worry about architecture of computer and computer system
 //      Microsoft Windows = another OS/ Pentium-compatable processors - Intel's x86 architecture it's a series that supports multi-core and later hyper-threading. 
 //      Modern x86-64 CPUs from Intel and AMD remain Pentium-compatible
 //      Pentium = microprocessor brand 
+
 // C compilation:
 //      GCC is a comomon C compiler (part of GNU Compiler Collection)
 //      vi file.c --> Unix text editor
@@ -25,5 +30,3 @@
 //      Easier for debugging since oyu know where it failed, but slower
 //      BASIC and Java are two programming languages in which programs are often interpreted and not compiled. Other examples include the Unix system’s shell and Python. Some vendors also offer interpreters for the C programming language.
 
-
-// explorer.exe . in terminal to open file explorer folder from WSL.
