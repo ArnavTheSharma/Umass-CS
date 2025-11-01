@@ -2,5 +2,7 @@
 
 void main(int argc, char *argv[]) {
     printf("number of args: %d", argc);
-    printf("Random number: %i", 2);
+    for (int i = 0; i<argc; i++) {
+        printf("\n argument # %d, = %s", i, argv[i]);
+    }
 }
