@@ -10,7 +10,7 @@ console.log('The value of pi is ' + pi.toString()); // no difference between "" 
 
 const d = [0,1,2,3]; // even though the array is a const, you can still change the internal value after?
 
-function factorial(n) {}
+function factorial(n:number) {}
 
 
 // === and !== in JS
